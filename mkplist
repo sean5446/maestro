@@ -1,0 +1,85 @@
+#!/usr/bin/perl -w
+
+use strict;
+use warnings;
+use Getopt::Std;
+use Data::Dumper;
+
+my %opts = ();
+my @songs = ();
+my @sorted = ();
+my $filename = 'pop.txt';
+my $genre = 'rock';
+
+getopts('i:g:',\%opts);
+$filename = $opts{'i'} if (defined $opts{'i'});
+$genre = $opts{'g'} if (defined $opts{'g'});
+
+my (%artists_count, %artists_plays, %artists_pop);
+%artists_count = %artists_plays = %artists_pop = ();
+
+my ($max_plays, $max_pop, $max_acount, $max_aplays, $max_apop);
+$max_plays = $max_pop = $max_acount = $max_aplays = $max_apop = 0;
+
+open(DATA1, $filename) or die "Fail: $!";
+
+while (my $line = <DATA1>) {
+	if ($line =~ /(.+),(.+),(.+),(\d+),(\d+)/) {
+		my %song = ();
+		$song{'artist'} = $1;
+		$song{'title'} = $2;
+		$song{'genre'} = $3;
+		$song{'play-count'} = $4;
+		$song{'pop'} = $5;
+		push(@songs, \%song);
+		
+		$artists_count{$1}++;
+		$artists_plays{$1} += $4;
+		$artists_pop{$1} += $5;
+
+		$max_plays = $4 if ($max_plays lt $4);
+		$max_pop = $5 if ($max_pop lt $5);
+
+		$max_acount = $artists_count{$1} if ($max_acount lt $artists_count{$1});
+		$max_aplays = $artists_plays{$1} if ($max_aplays lt $artists_plays{$1});
+		$max_apop = $artists_pop{$1} if ($max_apop lt $artists_pop{$1});
+	}
+}
+
+close(DATA1);
+
+
+foreach my $song (@songs) {
+	my $artist_name = $song->{'artist'};
+	my $title = $song->{'title'};
+	my $plays = $song->{'play-count'};
+	my $pop = $song->{'pop'};
+	my $artist_count = $artists_count{$artist_name};
+	my $artist_plays = $artists_plays{$artist_name};
+	my $artist_pop = $artists_pop{$artist_name};
+	
+	$pop = sqrt($pop) / sqrt($max_pop);
+	$plays = $plays / $max_plays;
+	
+	$artist_count = $artist_count / $max_acount;
+	$artist_plays = $artist_plays / $max_aplays;
+	$artist_pop = sqrt($artist_pop) / sqrt($max_apop);
+	
+	my $song_score = 
+		50 * $pop + 			# popularity of the song
+		20 * $plays + 			# num of song plays
+		10 * $artist_pop + 		# popularity of artist
+		10 * $artist_plays +	# num of artist plays
+		10 * $artist_count;		# how many songs by artist
+	
+	$song_score = int($song_score);
+	$song->{'score'} = $song_score;
+}
+
+
+foreach(sort {$$b{'pop'} <=> $$a{'pop'}} @songs){
+	print "$$_{'artist'},$$_{'title'},$$_{'pop'},$$_{'score'}\n";
+}
+
+
+

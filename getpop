@@ -1,0 +1,69 @@
+#!/usr/bin/perl -w
+
+# This program requires curl
+
+use strict;
+use warnings;
+use Getopt::Std;
+
+my %opts = ();
+my $user_agent = 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:14.0.1) Gecko/20100101 Firefox/14.0.1';
+my $filename = 'srs.txt';
+my $time = 10;
+
+getopts('i:t:',\%opts);
+$filename = $opts{'i'} if (defined $opts{'i'});
+$time = $opts{'t'} if (defined $opts{'t'});
+
+sub my_substr {
+	my $str = shift;
+	my $pos = index($str, ' ', 30);
+	$pos = length($str) if ($pos < 30);
+	return substr($str, 0, $pos);
+}
+
+sub format_str {
+	my $str = shift;
+	$str =~ s/\&amp\;/ and /g;
+	$str =~ s/\&gt\;//g;
+	$str =~ s/\.mp3//g;
+	$str =~ s/\// /g;
+	$str =~ s/\_/ /g;
+	$str =~ s/\-/ /g;
+	$str =~ s/\s+/ /g;
+	$str =~ s/[^\w\s]//g;
+	return $str;
+}
+
+open(DATA1, $filename) or die "Fail: $!";
+
+while (my $line = <DATA1>) {
+	chomp($line);
+	$line =~ /(.+),(.+),(.+),(\d+)/;
+	my $artist = my_substr($1);
+	my $title = my_substr($2);
+	my $genre = format_str($3);
+	my $playcount = $4;
+	my $pop = '0';
+	
+	my $search = format_str('"' . $artist . '" "' . $title . '"');
+	$search =~ s/ /\+/g;
+
+	foreach my $l (`curl -A '$user_agent' 'https://www.google.com/search?q=$search' 2>&1`) {
+		if ($l =~ /resultStats>[^\d]+(.+) results/) {
+			$pop = $1;
+			$pop =~ s/[^\d]//g;
+			last;
+		} 
+		else {
+			$pop = '0';
+		}
+	}
+	
+	print("$artist,$title,$genre,$playcount,$pop\n");
+	system("sleep $time");
+}
+
+close(DATA1);
+
+

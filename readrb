@@ -1,0 +1,68 @@
+#!/usr/bin/perl -w
+
+use strict;
+use warnings;
+use Getopt::Std;
+
+my %song;
+my %opts;
+my $reading;
+my $skip = 1;
+my $filename = 'rhythmdb.xml';
+
+getopts('i:n:',\%opts);
+$filename = $opts{'i'} if (defined $opts{'i'});
+$skip = $opts{'n'} if (defined $opts{'n'});
+
+open(DATA1, $filename) or die "Fail: $!";
+
+my $x = 0;
+while (my $line = <DATA1>) {
+	#next if $line =~ /^\s*$/;
+	#chomp($line);
+
+	if ($line =~ /entry type.+song/) {
+		$reading = 1;
+		%song = ();
+		$song{'play-count'} = 1; # default, if none
+	}
+	
+	if ($reading) {
+		if ($line =~ /<title>(.+)</) {
+			$song{'title'} = $1;
+		}
+		elsif ($line =~ /<genre>(.+)</) {
+			$song{'genre'} = $1;
+		}
+		elsif ($line =~ /<artist>(.+)</) {
+			$song{'artist'} = $1;
+		}
+		elsif ($line =~ /<album>(.+)</) {
+			$song{'album'} = $1;
+		}
+		elsif ($line =~ /<location>(.+)</) {
+			$song{'location'} = $1;
+		}
+		elsif ($line =~ /<play-count>(.+)</) {
+			$song{'play-count'} = $1;
+		}
+		elsif ($line =~ /<\/entry>/) {
+			my $artist = $song{'artist'};
+			my $title = $song{'title'};
+			my $genre = $song{'genre'};
+			my $playcount = $song{'play-count'};
+			my $location = $song{'location'};
+			$artist =~ s/\,//;
+			$title =~ s/\,//;
+			$genre =~ s/\,//;
+			
+			print("$artist,$title,$genre,$playcount\n") if ($x % $skip == 0);
+			$x++;
+			$reading = 0;
+		}
+	}
+}
+
+close(DATA1);
+
+
